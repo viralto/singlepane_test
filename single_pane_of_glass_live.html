@@ -127,6 +127,25 @@
   .search-hit .hit-sub{color:var(--text-muted); font-size:11px; margin-top:1px;}
   .search-empty{padding:10px 12px; color:var(--text-dim); font-size:12px;}
 
+  .stripe-strip{background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px 18px; margin-top:14px;}
+  .stripe-strip h2{font-size:11.5px; text-transform:uppercase; letter-spacing:0.8px; color:var(--text-dim); margin:0 0 10px;}
+  .stripe-head{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;}
+  .stripe-pill{font-family:var(--mono); font-size:10.5px; padding:4px 10px; border-radius:12px; border:1px solid; white-space:nowrap;}
+  .stripe-pill.matched_by_vat{color:var(--confirmed); border-color:var(--confirmed); background:var(--confirmed-bg);}
+  .stripe-pill.matched_by_name{color:var(--needs-cr); border-color:var(--needs-cr); background:var(--needs-cr-bg);}
+  .stripe-pill.unmatched{color:var(--unmatched); border-color:var(--unmatched); background:var(--unmatched-bg);}
+  .stripe-pill.not_configured{color:var(--text-dim); border-color:var(--border); background:var(--surface-2);}
+  .stripe-cust{font-size:13px; font-weight:600;}
+  .stripe-email{font-size:11.5px; color:var(--text-muted); font-family:var(--mono);}
+  .delinquent-flag{font-family:var(--mono); font-size:10px; padding:2px 7px; border-radius:10px; color:var(--unmatched); border:1px solid var(--unmatched); background:var(--unmatched-bg);}
+  .stripe-invoice-row{display:flex; justify-content:space-between; align-items:baseline; gap:10px; padding:6px 0; border-top:1px solid var(--border); font-size:12.5px;}
+  .stripe-invoice-row .inv-desc{color:var(--text-muted);}
+  .stripe-invoice-row .inv-amount{font-family:var(--mono); font-weight:600;}
+  .stripe-status-tag{font-family:var(--mono); font-size:9.5px; padding:1px 6px; border-radius:8px; text-transform:uppercase;}
+  .stripe-status-tag.paid{color:var(--confirmed); background:var(--confirmed-bg);}
+  .stripe-status-tag.open{color:var(--needs-cr); background:var(--needs-cr-bg);}
+  .stripe-status-tag.other{color:var(--text-dim); background:var(--surface-2);}
+
   @media (max-width:760px){
     .join-row{grid-template-columns:1fr; gap:14px;}
     .join-mid{flex-direction:row; padding:6px 0;}
@@ -209,6 +228,21 @@ const CUSTOMER_FIELD_GROUPS = [
   {role: "finance", fields: ["striperef","stripepublic","stripeprivate"]},
 ];
 
+// Stripe objects are already almost entirely Finance's domain by nature, so
+// there's less need for a multi-role split here than VTAP's readers get.
+const STRIPE_CUSTOMER_FIELD_GROUPS = [
+  {role: "finance", fields: ["id","name","email","phone","balance","currency","delinquent",
+    "address","shipping","tax_exempt","invoice_prefix","invoice_settings","default_source",
+    "created","livemode","description","metadata"]},
+];
+const STRIPE_INVOICE_FIELD_GROUPS = [
+  {role: "finance", fields: ["id","number","status","collection_method","billing_reason",
+    "currency","amount_due","amount_paid","amount_remaining","subtotal","tax","total",
+    "paid","attempted","attempt_count","due_date","period_start","period_end","created",
+    "customer_tax_ids","automatic_tax","account_name","account_country","hosted_invoice_url",
+    "invoice_pdf","payment_intent","subscription","lines","livemode"]},
+];
+
 let currentRoleFilter = "all";
 let searchIndex = [];
 
@@ -216,10 +250,12 @@ function buildSearchIndex(DATA) {
   searchIndex = [];
   DATA.correlated.forEach((c, i) => {
     const vc = c.vtap_customer;
+    const stripeEmail = c.stripe_match ? c.stripe_match.email : null;
     searchIndex.push({
       type: "customer", tabIndex: i, rowId: null,
-      label: vc.custname, sub: vc.cid,
-      hay: [vc.custname, vc.cid, vc.billingentity, vc.country].filter(Boolean).join(" ").toLowerCase(),
+      label: vc.custname, sub: vc.cid + (stripeEmail ? "  ·  " + stripeEmail : ""),
+      hay: [vc.custname, vc.cid, vc.billingentity, vc.country, stripeEmail, vc.billingvat]
+        .filter(Boolean).join(" ").toLowerCase(),
     });
     c.readers.forEach(r => {
       searchIndex.push({
@@ -320,10 +356,30 @@ function renderFieldValue(val) {
   return `<span class="fv">${String(val).replace(/</g, "&lt;")}</span>`;
 }
 
-function renderFieldGroups(record, groups) {
+// VTAP embeds a full copy of the customer's billing record on every single
+// reader it returns ("fully de-referenced"). Confirmed 12 Aug: these are
+// identical across every reader for a given customer, not reader-specific
+// data, so they get collapsed to one note rather than listed 13 times over.
+const CUSTOMER_ECHO_FIELDS = ["custname","custaddr","country","billingcontact","billingemail",
+  "billingcurrency","billingentity","striperef","stripepublic","stripeprivate","custstatus",
+  "billingvat","custinternal"];
+
+function renderFieldGroups(record, groups, opts) {
+  const collapseEcho = opts && opts.collapseEcho;
   const known = new Set();
   groups.forEach(g => g.fields.forEach(f => known.add(f)));
-  const leftover = Object.keys(record).filter(k => !known.has(k) && k !== "_rowid");
+  let leftover = Object.keys(record).filter(k => !known.has(k) && k !== "_rowid");
+  let echoNote = "";
+  if (collapseEcho) {
+    const echoPresent = leftover.filter(k => CUSTOMER_ECHO_FIELDS.includes(k));
+    leftover = leftover.filter(k => !CUSTOMER_ECHO_FIELDS.includes(k));
+    if (echoPresent.length) {
+      echoNote = `<div class="field-group" data-role="billing">
+        <div class="field-group-label" style="color:${ROLES.billing.color};">Customer record (same as the card above)</div>
+        <div class="empty-note" style="padding:0;">VTAP embeds a full copy of the customer's billing record on every reader (${echoPresent.length} fields: ${echoPresent.join(", ")}). Identical across all of this customer's readers, not shown again here to avoid repeating it.</div>
+      </div>`;
+    }
+  }
   const allGroups = leftover.length ? [...groups, {role: "tech", fields: leftover, label: "Other"}] : groups;
 
   return allGroups.map(g => {
@@ -339,7 +395,7 @@ function renderFieldGroups(record, groups) {
         <div class="field-group-label" style="color:${role.color};">${g.label || role.full}</div>
         <div class="field-kv">${rows}</div>
       </div>`;
-  }).join("");
+  }).join("") + echoNote;
 }
 
 function applyRoleFilter() {
@@ -380,9 +436,9 @@ function renderAll(DATA) {
   const badge = document.getElementById("source-badge");
   badge.classList.remove("live", "partial", "sample");
   const sourceText = document.getElementById("source-text");
-  if (DATA.vtap_live && DATA.ent_live) {
+  if (DATA.vtap_live && DATA.ent_live && DATA.stripe_live) {
     badge.classList.add("live");
-  } else if (DATA.vtap_live || DATA.ent_live) {
+  } else if (DATA.vtap_live || DATA.ent_live || DATA.stripe_live) {
     badge.classList.add("partial");
   } else {
     badge.classList.add("sample");
@@ -541,6 +597,76 @@ function renderCustomer(c) {
   joinRow.appendChild(mid);
   joinRow.appendChild(entCard);
   wrap.appendChild(joinRow);
+  wrap.appendChild(renderStripe(c));
+  return wrap;
+}
+
+function formatMoney(amountMinor, currency) {
+  if (amountMinor === null || amountMinor === undefined) return "-";
+  return (amountMinor / 100).toFixed(2) + " " + (currency || "").toUpperCase();
+}
+
+function stripeStatusTag(status) {
+  const cls = status === "paid" ? "paid" : (status === "open" || status === "draft") ? "open" : "other";
+  return `<span class="stripe-status-tag ${cls}">${status}</span>`;
+}
+
+function renderStripe(c) {
+  const wrap = document.createElement("div");
+  wrap.className = "stripe-strip";
+  const sc = c.stripe_match;
+  const status = c.stripe_status;
+  const detailId = "stripe-detail-" + (readerDetailSeq++);
+
+  const pillLabel = {
+    matched_by_vat: "matched · by VAT number",
+    matched_by_name: "matched · by name",
+    unmatched: "no match",
+    not_configured: "not connected",
+  }[status] || status;
+
+  let body = "";
+  if (status === "not_configured") {
+    body = `<div class="empty-note">Stripe wasn't connected this session, so nothing to check here. Restart the proxy and enter the key if you want this filled in.</div>`;
+  } else if (!sc) {
+    body = `<div class="empty-note">No matching Stripe customer found. Either this customer hasn't been created in Stripe, or the name and VAT number don't line up closely enough to match on.</div>`;
+  } else {
+    const invoiceRows = (c.stripe_invoices || []).map(inv => `
+      <div class="stripe-invoice-row">
+        <div>
+          ${stripeStatusTag(inv.status)}
+          <span class="inv-desc">${inv.number || inv.id} · ${inv.collection_method}${inv.billing_reason ? " · " + inv.billing_reason : ""}</span>
+        </div>
+        <div class="inv-amount">${formatMoney(inv.amount_due, inv.currency)}</div>
+      </div>`).join("");
+    body = `
+      <div class="stripe-cust">${sc.name || "(no name)"} ${sc.delinquent ? '<span class="delinquent-flag">delinquent</span>' : ""}</div>
+      <div class="stripe-email">${sc.email || "no email"} · ${sc.id}</div>
+      ${invoiceRows ? `<div style="margin-top:8px;">${invoiceRows}</div>` : `<div class="empty-note" style="padding:8px 0 0;">No invoices for this customer.</div>`}
+      <span class="customer-detail-toggle" id="${detailId}-toggle">Show full Stripe record</span>
+      <div class="detail-wrap" id="${detailId}">
+        ${renderFieldGroups(sc, STRIPE_CUSTOMER_FIELD_GROUPS)}
+        ${(c.stripe_invoices || []).map(inv => renderFieldGroups(inv, STRIPE_INVOICE_FIELD_GROUPS)).join("")}
+      </div>
+    `;
+  }
+
+  wrap.innerHTML = `
+    <h2>Stripe · Payment status</h2>
+    <div class="stripe-head"><span class="stripe-pill ${status}">${pillLabel}</span></div>
+    ${body}
+  `;
+
+  if (sc) {
+    const toggle = wrap.querySelector("#" + detailId + "-toggle");
+    const detail = wrap.querySelector("#" + detailId);
+    toggle.addEventListener("click", () => {
+      const opening = !detail.classList.contains("open");
+      detail.classList.toggle("open", opening);
+      toggle.textContent = opening ? "Hide full Stripe record" : "Show full Stripe record";
+      if (opening) applyRoleFilter();
+    });
+  }
   return wrap;
 }
 
@@ -565,7 +691,7 @@ function renderReaders(readers) {
       <td class="narrow" title="${r.lasthbtime ?? ''}">${timeSince(r.lasthbtime)}</td>
     </tr>
     <tr class="detail-row"><td colspan="5">
-      <div class="detail-wrap" id="${id}">${renderFieldGroups(r, READER_FIELD_GROUPS)}</div>
+      <div class="detail-wrap" id="${id}">${renderFieldGroups(r, READER_FIELD_GROUPS, {collapseEcho: true})}</div>
     </td></tr>`;
   }).join("");
   return `<table><thead><tr><th>rid</th><th>Fleet</th><th>appparam2</th><th>lasttaptime</th><th>last seen</th></tr></thead><tbody>${rows}</tbody></table>`;
