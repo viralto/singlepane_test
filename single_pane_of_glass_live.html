@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VTAP / Enterpryze: correlated view</title>
+<style>
+  :root{
+    --bg:#F6F7F9; --surface:#FFFFFF; --surface-2:#EEF1F4; --border:#DCE1E6;
+    --text:#1C232B; --text-muted:#5B6572; --text-dim:#8A93A0;
+    --confirmed:#2E9E6D; --confirmed-bg:#E7F5EE;
+    --needs-cr:#B07A1A; --needs-cr-bg:#FBF1DD;
+    --open-q:#5B63A6; --open-q-bg:#ECEDF7;
+    --in-progress:#2C7BB8; --in-progress-bg:#E4F1F9;
+    --unmatched:#A83A56; --unmatched-bg:#F7E7EC;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+    --sans: -apple-system, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--bg); color:var(--text); font-family:var(--sans); font-size:14px; line-height:1.5;}
+  header{padding:20px 28px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;}
+  header h1{font-size:16px; margin:0; font-weight:600; letter-spacing:0.2px;}
+  header .sub{color:var(--text-muted); font-size:12.5px; margin-top:3px;}
+  .badge{font-family:var(--mono); font-size:11.5px; padding:4px 10px; border-radius:20px; border:1px solid var(--border); display:inline-flex; align-items:center; gap:6px;}
+  .badge.sample{color:var(--needs-cr); border-color:var(--needs-cr);}
+  .badge.partial{color:var(--in-progress); border-color:var(--in-progress);}
+  .badge.live{color:var(--confirmed); border-color:var(--confirmed);}
+  .dot{width:6px; height:6px; border-radius:50%; background:currentColor;}
+
+  main{max-width:1180px; margin:0 auto; padding:24px 28px 60px;}
+
+  .tabs{display:flex; gap:6px; margin-bottom:20px; flex-wrap:wrap;}
+  .tab{background:var(--surface); border:1px solid var(--border); color:var(--text-muted); padding:8px 14px; border-radius:8px; cursor:pointer; font-size:13px; font-family:var(--sans);}
+  .tab.active{color:var(--text); border-color:#3A4756; background:var(--surface-2);}
+  .tab .n{color:var(--text-dim); font-family:var(--mono); font-size:11px; margin-left:6px;}
+
+  .panel{display:none;}
+  .panel.active{display:block;}
+
+  .join-row{display:grid; grid-template-columns:1fr 90px 1fr; gap:0; align-items:stretch; margin-bottom:22px;}
+  .sys-card{background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:18px;}
+  .sys-card h2{font-size:11.5px; text-transform:uppercase; letter-spacing:0.8px; color:var(--text-dim); margin:0 0 12px;}
+  .sys-card .name{font-size:17px; font-weight:600; margin-bottom:2px;}
+  .sys-card .id{font-family:var(--mono); font-size:12px; color:var(--text-muted);}
+  .kv{display:grid; grid-template-columns:auto 1fr; gap:4px 12px; margin-top:12px; font-size:12.5px;}
+  .kv div.k{color:var(--text-dim); font-family:var(--mono);}
+  .kv div.v{color:var(--text);}
+
+  .join-mid{display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; padding:0 4px;}
+  .join-line{position:absolute; top:50%; left:0; right:0; border-top:1px dashed var(--border); z-index:0;}
+  .join-pill{z-index:1; font-family:var(--mono); font-size:10.5px; padding:5px 9px; border-radius:14px; text-align:center; white-space:nowrap; border:1px solid;}
+  .join-pill.matched_by_name{color:var(--needs-cr); border-color:var(--needs-cr); background:var(--needs-cr-bg);}
+  .join-pill.unmatched{color:var(--unmatched); border-color:var(--unmatched); background:var(--unmatched-bg);}
+  .join-note{font-size:10.5px; color:var(--text-dim); text-align:center; margin-top:8px; max-width:110px; line-height:1.4;}
+
+  .readers, .invoices{margin-top:14px;}
+  .readers h3, .invoices h3{font-size:11px; text-transform:uppercase; letter-spacing:0.6px; color:var(--text-dim); margin:0 0 8px;}
+  table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  th{text-align:left; color:var(--text-dim); font-weight:500; font-size:10.5px; text-transform:uppercase; letter-spacing:0.4px; padding:0 8px 6px 0;}
+  td{padding:6px 8px 6px 0; border-top:1px solid var(--border); font-family:var(--mono); font-size:12px;}
+  td.narrow{font-family:var(--sans);}
+  .fleet-yes{color:var(--confirmed);}
+  .fleet-no{color:var(--unmatched);}
+  .empty-note{color:var(--text-dim); font-size:12px; padding:10px 0;}
+
+  .legend{margin-top:36px;}
+  .legend h2{font-size:13px; margin:0 0 4px;}
+  .legend p.hint{color:var(--text-muted); font-size:12.5px; margin:0 0 16px;}
+  .status-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:10px;}
+  .field-row{background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:12px 14px;}
+  .field-row .top{display:flex; justify-content:space-between; align-items:baseline; gap:8px;}
+  .field-row .fname{font-size:13px; font-weight:600;}
+  .field-row .fsys{font-family:var(--mono); font-size:10px; color:var(--text-dim); margin-bottom:4px;}
+  .field-row .fnote{font-size:12px; color:var(--text-muted); margin-top:6px; line-height:1.45;}
+  .status-tag{font-family:var(--mono); font-size:10px; padding:2px 8px; border-radius:10px; white-space:nowrap; border:1px solid;}
+  .status-tag.confirmed{color:var(--confirmed); border-color:var(--confirmed); background:var(--confirmed-bg);}
+  .status-tag.needs_cr{color:var(--needs-cr); border-color:var(--needs-cr); background:var(--needs-cr-bg);}
+  .status-tag.open_question{color:var(--open-q); border-color:var(--open-q); background:var(--open-q-bg);}
+  .status-tag.in_progress{color:var(--in-progress); border-color:var(--in-progress); background:var(--in-progress-bg);}
+  .ref{font-family:var(--mono); font-size:10.5px; color:var(--text-dim);}
+
+  .connect-bar{display:flex; gap:8px; align-items:center; padding:14px 28px; border-bottom:1px solid var(--border); background:var(--surface); flex-wrap:wrap;}
+  .connect-bar input{flex:1; min-width:260px; font-family:var(--mono); font-size:12.5px; padding:8px 10px; border:1px solid var(--border); border-radius:6px; background:var(--bg); color:var(--text);}
+  .connect-bar button{font-family:var(--sans); font-size:12.5px; padding:8px 14px; border-radius:6px; border:1px solid #3A4756; background:var(--surface-2); color:var(--text); cursor:pointer;}
+  .connect-bar button:hover{background:var(--border);}
+  .connect-msg{font-size:12px; color:var(--text-muted); width:100%;}
+  .connect-msg.error{color:var(--unmatched);}
+  #content{display:none;}
+
+  .role-filter{display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:16px;}
+  .role-filter-label{font-size:12px; color:var(--text-dim); margin-right:4px;}
+  .role-btn{font-family:var(--sans); font-size:12px; padding:5px 12px; border-radius:14px; border:1px solid var(--border); background:var(--surface); color:var(--text-muted); cursor:pointer;}
+  .role-btn.active{border-color:var(--text); color:var(--text); background:var(--surface-2); font-weight:600;}
+
+  .reader-row{cursor:pointer;}
+  .reader-row:hover{background:var(--surface-2);}
+  .reader-row td{position:relative;}
+  .chev{display:inline-block; width:9px; color:var(--text-dim); margin-right:4px; transition:transform .12s;}
+  .chev.open{transform:rotate(90deg);}
+  .detail-row td{padding:0; border-top:none;}
+  .detail-wrap{display:none; padding:10px 8px 14px 20px; background:var(--surface-2); border-radius:6px; margin:2px 0 8px;}
+  .detail-wrap.open{display:block;}
+  .field-group{margin-bottom:10px;}
+  .field-group:last-child{margin-bottom:0;}
+  .field-group-label{font-size:10.5px; text-transform:uppercase; letter-spacing:0.5px; font-weight:600; padding:3px 0; margin-bottom:4px; border-bottom:1px solid var(--border);}
+  .field-kv{display:grid; grid-template-columns:180px 1fr; gap:3px 10px; font-size:12px;}
+  .field-kv .fk{font-family:var(--mono); color:var(--text-dim); word-break:break-all;}
+  .field-kv .fv{color:var(--text); word-break:break-word;}
+  .field-kv .fv.null{color:var(--text-dim); font-style:italic;}
+  .field-kv pre{grid-column:1/-1; margin:2px 0 6px; font-size:10.5px; background:var(--bg); border:1px solid var(--border); border-radius:4px; padding:8px; white-space:pre-wrap; word-break:break-all; max-height:200px; overflow:auto; font-family:var(--mono);}
+  .customer-detail-toggle{font-size:11.5px; color:var(--text-dim); cursor:pointer; text-decoration:underline; margin-top:10px; display:inline-block;}
+
+  @media (max-width:760px){
+    .join-row{grid-template-columns:1fr; gap:14px;}
+    .join-mid{flex-direction:row; padding:6px 0;}
+    .join-line{display:none;}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>VTAP Cloud ⟷ Enterpryze: correlated view (live)</h1>
+    <div class="sub" id="generated">Not connected yet</div>
+  </div>
+  <span class="badge" id="source-badge"><span class="dot"></span><span id="source-text">Not connected</span></span>
+</header>
+
+<div class="connect-bar">
+  <input id="proxy-url" type="text" placeholder="https://something.trycloudflare.com  (from cloudflared, this session)">
+  <button id="connect-btn">Connect</button>
+  <button id="refresh-btn" style="display:none;">Refresh</button>
+  <div class="connect-msg" id="connect-msg">Paste the tunnel URL printed by <code>cloudflared</code>, then Connect. Reloading this page later reuses the same URL automatically, as long as the proxy and tunnel are still running.</div>
+</div>
+
+<main id="content">
+  <div class="role-filter" id="role-filter">
+    <span class="role-filter-label">View as:</span>
+  </div>
+  <div class="tabs" id="tabs"></div>
+  <div id="panels"></div>
+
+  <div class="legend">
+    <h2>What the middleware would actually have, right now</h2>
+    <p class="hint">Every field below maps to a row on the qualification tracker. Green is usable today. Amber needs a VTAP change request. Blue is an open question, mostly on the Enterpryze side. This updates automatically as CRs and questions get resolved. Right now it reflects the tracker as of 12 August.</p>
+    <div class="status-grid" id="status-grid"></div>
+  </div>
+</main>
+
+<script>
+const STATUS_LABEL = {
+  confirmed: "Confirmed available",
+  needs_cr: "Needs change request",
+  open_question: "Open question",
+  in_progress: "In progress"
+};
+
+const RAG_COLOR = {red: "var(--unmatched)", green: "var(--confirmed)", grey: "var(--text-dim)"};
+
+const ROLES = {
+  ops:      {label: "Operations", full: "Operations, registration, hardware & Fleet", color: "#5B63A6"},
+  product:  {label: "Product", full: "Product, activation & app behaviour", color: "#2C7BB8"},
+  billing:  {label: "Billing", full: "Billing & account management", color: "#B07A1A"},
+  finance:  {label: "Finance", full: "Finance, accounting & Stripe reconciliation", color: "#2E9E6D"},
+  tech:     {label: "Technical", full: "Technical / diagnostic", color: "#8A93A0"},
+};
+
+const READER_FIELD_GROUPS = [
+  {role: "ops", fields: ["rid","serialno","cid","fid","fleetname","fleetstatus","location","rmid",
+    "modelname","modeldesc","modeltag1","modeltag2","modeltag3","firmware","hardware","wifissid",
+    "availability","active","claimtime","_rag","_status","lasthbtime","lastheartbeat","sync",
+    "lastdownload","sshportm","sshportr","atca","tags","rmattributes"]},
+  {role: "product", fields: ["aid","appname","appdesc","atid","atname","atdesc","atstatus","ataction",
+    "atparameters","atactionvalues","atsuccess","aterror","attimers","appjson","appstatus","mode",
+    "appparam1","appparam2","lasttaptime","lasttap","lasttapreply","configname","configdesc",
+    "configtype","configstatus","configjson","cfid","_aid","_appname","_cfid","_configname"]},
+  {role: "tech", fields: ["sessionhash","sessstart","publickey","challenge","challtime",
+    "config_txt","config_ini"]},
+];
+
+const CUSTOMER_FIELD_GROUPS = [
+  {role: "ops", fields: ["cid","custinternal"]},
+  {role: "billing", fields: ["custname","custaddr","country","billingcontact","billingemail",
+    "billingcurrency","billingentity","billingvat","custstatus"]},
+  {role: "finance", fields: ["striperef","stripepublic","stripeprivate"]},
+];
+
+let currentRoleFilter = "all";
+
+function timeSince(str) {
+  if (!str) return "never";
+  const then = new Date(str.replace(" ", "T") + "Z");
+  if (isNaN(then.getTime())) return str;
+  const secs = Math.floor((Date.now() - then.getTime()) / 1000);
+  if (secs < 0) return "just now";
+  if (secs < 60) return secs + "s ago";
+  const mins = Math.floor(secs / 60); if (mins < 60) return mins + "m ago";
+  const hrs = Math.floor(mins / 60); if (hrs < 24) return hrs + "h ago";
+  const days = Math.floor(hrs / 24); return days + "d ago";
+}
+
+function renderFieldValue(val) {
+  if (val === null || val === undefined || val === "") {
+    return `<span class="fv null">null</span>`;
+  }
+  if (typeof val === "string" && (val.trim().startsWith("{") || val.trim().startsWith("["))) {
+    try {
+      const parsed = JSON.parse(val);
+      return `<pre>${JSON.stringify(parsed, null, 2).replace(/</g, "&lt;")}</pre>`;
+    } catch (e) { /* not actually JSON, fall through */ }
+  }
+  if (typeof val === "string" && (val.includes("-----BEGIN") || val.split("\n").length > 2)) {
+    return `<pre>${val.replace(/</g, "&lt;")}</pre>`;
+  }
+  return `<span class="fv">${String(val).replace(/</g, "&lt;")}</span>`;
+}
+
+function renderFieldGroups(record, groups) {
+  const known = new Set();
+  groups.forEach(g => g.fields.forEach(f => known.add(f)));
+  const leftover = Object.keys(record).filter(k => !known.has(k));
+  const allGroups = leftover.length ? [...groups, {role: "tech", fields: leftover, label: "Other"}] : groups;
+
+  return allGroups.map(g => {
+    const present = g.fields.filter(f => f in record);
+    if (!present.length) return "";
+    const role = ROLES[g.role];
+    const rows = present.map(f => `
+      <div class="fk">${f}</div>
+      ${renderFieldValue(record[f])}
+    `).join("");
+    return `
+      <div class="field-group" data-role="${g.role}">
+        <div class="field-group-label" style="color:${role.color};">${g.label || role.full}</div>
+        <div class="field-kv">${rows}</div>
+      </div>`;
+  }).join("");
+}
+
+function applyRoleFilter() {
+  document.querySelectorAll(".field-group").forEach(el => {
+    el.style.display = (currentRoleFilter === "all" || el.dataset.role === currentRoleFilter) ? "" : "none";
+  });
+}
+
+function buildRoleFilterBar() {
+  const bar = document.getElementById("role-filter");
+  bar.querySelectorAll(".role-btn").forEach(b => b.remove());
+  const opts = [["all", "All"], ...Object.entries(ROLES).filter(([k]) => k !== "tech").map(([k, r]) => [k, r.label]), ["tech", "Technical"]];
+  opts.forEach(([key, label]) => {
+    const btn = document.createElement("button");
+    btn.className = "role-btn" + (key === "all" ? " active" : "");
+    btn.textContent = label;
+    btn.onclick = () => {
+      currentRoleFilter = key;
+      bar.querySelectorAll(".role-btn").forEach(b => b.classList.toggle("active", b === btn));
+      applyRoleFilter();
+    };
+    bar.appendChild(btn);
+  });
+}
+
+function renderAll(DATA) {
+  document.getElementById("tabs").innerHTML = "";
+  document.getElementById("panels").innerHTML = "";
+  document.getElementById("status-grid").innerHTML = "";
+  buildRoleFilterBar();
+
+  document.getElementById("generated").textContent =
+    "Generated " + new Date(DATA.generated_at).toLocaleString();
+  const badge = document.getElementById("source-badge");
+  badge.classList.remove("live", "partial", "sample");
+  const sourceText = document.getElementById("source-text");
+  if (DATA.vtap_live && DATA.ent_live) {
+    badge.classList.add("live");
+  } else if (DATA.vtap_live || DATA.ent_live) {
+    badge.classList.add("partial");
+  } else {
+    badge.classList.add("sample");
+  }
+  sourceText.textContent = DATA.source;
+
+  const tabs = document.getElementById("tabs");
+  const panels = document.getElementById("panels");
+
+  DATA.correlated.forEach((c, i) => {
+    const tab = document.createElement("div");
+    tab.className = "tab" + (i === 0 ? " active" : "");
+    const internal = c.vtap_customer.custinternal === "1" ? ` <span class="n">internal</span>` : "";
+    tab.innerHTML = c.vtap_customer.custname + internal + `<span class="n">${c.reader_count} readers</span>`;
+    tab.onclick = () => selectTab(i);
+    tabs.appendChild(tab);
+
+    const panel = document.createElement("div");
+    panel.className = "panel" + (i === 0 ? " active" : "");
+    panel.appendChild(renderCustomer(c));
+    panels.appendChild(panel);
+  });
+
+  if (DATA.unassigned_readers && DATA.unassigned_readers.length) {
+    const idx = DATA.correlated.length;
+    const tab = document.createElement("div");
+    tab.className = "tab";
+    tab.innerHTML = `Unassigned<span class="n">${DATA.unassigned_readers.length} readers</span>`;
+    tab.onclick = () => selectTab(idx);
+    tabs.appendChild(tab);
+
+    const panel = document.createElement("div");
+    panel.className = "panel";
+    panel.appendChild(renderUnassigned(DATA.unassigned_readers));
+    panels.appendChild(panel);
+  }
+
+  const grid = document.getElementById("status-grid");
+  DATA.field_status.forEach(f => {
+    const row = document.createElement("div");
+    row.className = "field-row";
+    row.innerHTML = `
+      <div class="fsys">${f.system}</div>
+      <div class="top">
+        <div class="fname">${f.field}</div>
+        <span class="status-tag ${f.status}">${STATUS_LABEL[f.status]}</span>
+      </div>
+      ${f.ref ? `<div class="ref">${f.ref}</div>` : ""}
+      ${f.note ? `<div class="fnote">${f.note}</div>` : ""}
+    `;
+    grid.appendChild(row);
+  });
+
+  document.getElementById("content").style.display = "block";
+  applyRoleFilter();
+}
+
+function selectTab(i) {
+  const tabs = document.getElementById("tabs");
+  const panels = document.getElementById("panels");
+  [...tabs.children].forEach((t, idx) => t.classList.toggle("active", idx === i));
+  [...panels.children].forEach((p, idx) => p.classList.toggle("active", idx === i));
+}
+
+function renderUnassigned(readers) {
+  const wrap = document.createElement("div");
+  const card = document.createElement("div");
+  card.className = "sys-card";
+  card.style.maxWidth = "560px";
+  const rows = readers.map(r => `
+    <tr>
+      <td>${r.rid}</td>
+      <td class="narrow">${r.serialno}</td>
+      <td class="narrow">${r.note}</td>
+    </tr>`).join("");
+  card.innerHTML = `
+    <h2>VTAP Cloud · Readers with no customer (cid is null)</h2>
+    <p style="color:var(--text-muted); font-size:12.5px; margin:0 0 12px;">These don't appear under any tab above because there's no customer to attach them to. Not a Fleet gap, not a payer gap, no owner at all.</p>
+    <table><thead><tr><th>rid</th><th>serialno</th><th>note</th></tr></thead><tbody>${rows}</tbody></table>
+  `;
+  wrap.appendChild(card);
+  return wrap;
+}
+
+function renderCustomer(c) {
+  const wrap = document.createElement("div");
+  const vc = c.vtap_customer;
+  const bp = c.enterpryze_match;
+  const custDetailId = "cust-detail-" + (readerDetailSeq++);
+
+  const joinRow = document.createElement("div");
+  joinRow.className = "join-row";
+
+  const vtapCard = document.createElement("div");
+  vtapCard.className = "sys-card";
+  vtapCard.innerHTML = `
+    <h2>VTAP Cloud · Customer</h2>
+    <div class="name">${vc.custname}</div>
+    <div class="id">${vc.cid}</div>
+    <div class="kv">
+      <div class="k">billingentity</div><div class="v">${vc.billingentity ?? "-"}</div>
+      <div class="k">billingcurrency</div><div class="v">${vc.billingcurrency ?? "-"}</div>
+      <div class="k">country</div><div class="v">${vc.country ?? "-"}</div>
+      <div class="k">custstatus</div><div class="v">${vc.custstatus ?? "-"}</div>
+      <div class="k">striperef</div><div class="v">${vc.striperef ?? "null"}</div>
+    </div>
+    <span class="customer-detail-toggle" id="${custDetailId}-toggle">Show full customer record</span>
+    <div class="detail-wrap" id="${custDetailId}">${renderFieldGroups(vc, CUSTOMER_FIELD_GROUPS)}</div>
+    <div class="readers">
+      <h3>Readers (${c.reader_count}, ${c.fleet_count} Fleet${c.fleet_count===1?"":"s"})</h3>
+      ${renderReaders(c.readers)}
+    </div>
+  `;
+  wireReaderRows(vtapCard);
+  const custToggle = vtapCard.querySelector("#" + custDetailId + "-toggle");
+  const custDetail = vtapCard.querySelector("#" + custDetailId);
+  custToggle.addEventListener("click", () => {
+    const opening = !custDetail.classList.contains("open");
+    custDetail.classList.toggle("open", opening);
+    custToggle.textContent = opening ? "Hide full customer record" : "Show full customer record";
+    if (opening) applyRoleFilter();
+  });
+
+  const mid = document.createElement("div");
+  mid.className = "join-mid";
+  mid.innerHTML = `
+    <div class="join-line"></div>
+    <div class="join-pill ${c.join_status}">${c.join_status === "matched_by_name" ? "matched · by name" : "no match"}</div>
+    <div class="join-note">${c.join_note}</div>
+  `;
+
+  const entCard = document.createElement("div");
+  entCard.className = "sys-card";
+  if (bp) {
+    entCard.innerHTML = `
+      <h2>Enterpryze · Business Partner</h2>
+      <div class="name">${bp.name}</div>
+      <div class="id">${bp.cardCode}</div>
+      <div class="kv">
+        <div class="k">billToCity</div><div class="v">${bp.billToCity ?? "-"}</div>
+        <div class="k">billToCountry</div><div class="v">${bp.billToCountry ?? "-"}</div>
+      </div>
+      <div class="invoices">
+        <h3>Sales invoices (${c.invoices.length})</h3>
+        ${renderInvoices(c.invoices)}
+      </div>
+    `;
+  } else {
+    entCard.innerHTML = `
+      <h2>Enterpryze · Business Partner</h2>
+      <div class="empty-note">No matching Business Partner found. Either this customer hasn't been created in Enterpryze yet, or the names don't line up closely enough to match on.</div>
+    `;
+  }
+
+  joinRow.appendChild(vtapCard);
+  joinRow.appendChild(mid);
+  joinRow.appendChild(entCard);
+  wrap.appendChild(joinRow);
+  return wrap;
+}
+
+let readerDetailSeq = 0;
+
+function renderReaders(readers) {
+  if (!readers.length) return `<div class="empty-note">No readers.</div>`;
+  const rows = readers.map(r => {
+    const id = "rdr-detail-" + (readerDetailSeq++);
+    return `
+    <tr class="reader-row" data-target="${id}">
+      <td><span class="chev">▸</span><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${RAG_COLOR[r._rag] || 'var(--text-dim)'};margin-right:6px;" title="_rag: ${r._rag}"></span>${r.rid}</td>
+      <td class="narrow ${r.fid ? 'fleet-yes' : 'fleet-no'}">${r.fleetname ?? "no Fleet assigned"}</td>
+      <td class="narrow">${r.appparam2 ?? "-"}</td>
+      <td class="narrow">${r.lasttaptime ?? "never"}</td>
+      <td class="narrow" title="${r.lasthbtime ?? ''}">${timeSince(r.lasthbtime)}</td>
+    </tr>
+    <tr class="detail-row"><td colspan="5">
+      <div class="detail-wrap" id="${id}">${renderFieldGroups(r, READER_FIELD_GROUPS)}</div>
+    </td></tr>`;
+  }).join("");
+  return `<table><thead><tr><th>rid</th><th>Fleet</th><th>appparam2</th><th>lasttaptime</th><th>last seen</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function wireReaderRows(container) {
+  container.querySelectorAll(".reader-row").forEach(row => {
+    row.addEventListener("click", () => {
+      const detail = document.getElementById(row.dataset.target);
+      const chev = row.querySelector(".chev");
+      const opening = !detail.classList.contains("open");
+      detail.classList.toggle("open", opening);
+      chev.classList.toggle("open", opening);
+      if (opening) applyRoleFilter();
+    });
+  });
+}
+
+function renderInvoices(invoices) {
+  if (!invoices.length) return `<div class="empty-note">No invoices found for this Business Partner.</div>`;
+  const rows = invoices.map(inv => `
+    <tr>
+      <td>${inv._id}</td>
+      <td class="narrow">${inv.amountPaid.toFixed(2)}</td>
+      <td class="narrow">${inv.cancelled ? "cancelled" : "active"}</td>
+    </tr>`).join("");
+  return `<table><thead><tr><th>id</th><th>amountPaid</th><th>status</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+
+const urlInput = document.getElementById("proxy-url");
+const connectBtn = document.getElementById("connect-btn");
+const refreshBtn = document.getElementById("refresh-btn");
+const msg = document.getElementById("connect-msg");
+
+async function connect(showLoadingMsg) {
+  const url = urlInput.value.trim().replace(/\/$/, "");
+  if (!url) {
+    msg.textContent = "Paste the tunnel URL first.";
+    msg.classList.add("error");
+    return;
+  }
+  if (showLoadingMsg) {
+    msg.textContent = "Connecting...";
+    msg.classList.remove("error");
+  }
+  try {
+    const resp = await fetch(url + "/snapshot");
+    if (!resp.ok) {
+      throw new Error("Proxy responded with " + resp.status);
+    }
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+    renderAll(data);
+    msg.textContent = "Connected. Reload this page any time to refetch, as long as the proxy and tunnel are both still running.";
+    msg.classList.remove("error");
+    refreshBtn.style.display = "inline-block";
+    const params = new URLSearchParams(location.search);
+    params.set("proxy", url);
+    history.replaceState(null, "", "?" + params.toString());
+  } catch (e) {
+    msg.textContent = "Could not reach " + url + " (" + e.message + "). Check run_proxy.py and cloudflared are both still running, and that this is the current tunnel URL, it changes every time cloudflared restarts.";
+    msg.classList.add("error");
+    document.getElementById("content").style.display = "none";
+  }
+}
+
+connectBtn.addEventListener("click", () => connect(true));
+refreshBtn.addEventListener("click", () => connect(true));
+urlInput.addEventListener("keydown", (e) => { if (e.key === "Enter") connect(true); });
+
+const existing = new URLSearchParams(location.search).get("proxy");
+if (existing) {
+  urlInput.value = existing;
+  connect(true);
+}
+</script>
+</body>
+</html>
