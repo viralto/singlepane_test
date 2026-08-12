@@ -110,6 +110,19 @@
   .field-kv pre{grid-column:1/-1; margin:2px 0 6px; font-size:10.5px; background:var(--bg); border:1px solid var(--border); border-radius:4px; padding:8px; white-space:pre-wrap; word-break:break-all; max-height:200px; overflow:auto; font-family:var(--mono);}
   .customer-detail-toggle{font-size:11.5px; color:var(--text-dim); cursor:pointer; text-decoration:underline; margin-top:10px; display:inline-block;}
 
+  .search-bar{position:relative; margin-bottom:14px; max-width:420px;}
+  .search-bar input{width:100%; font-family:var(--sans); font-size:13px; padding:9px 12px; border:1px solid var(--border); border-radius:8px; background:var(--surface); color:var(--text); box-sizing:border-box;}
+  .search-bar input:focus{outline:none; border-color:#3A4756;}
+  .search-results{position:absolute; top:calc(100% + 4px); left:0; right:0; background:var(--surface); border:1px solid var(--border); border-radius:8px; box-shadow:0 6px 20px rgba(0,0,0,0.08); max-height:340px; overflow-y:auto; z-index:10; display:none;}
+  .search-results.open{display:block;}
+  .search-hit{padding:9px 12px; cursor:pointer; border-bottom:1px solid var(--border); font-size:12.5px;}
+  .search-hit:last-child{border-bottom:none;}
+  .search-hit:hover{background:var(--surface-2);}
+  .search-hit .hit-type{font-family:var(--mono); font-size:9.5px; text-transform:uppercase; color:var(--text-dim); margin-right:6px;}
+  .search-hit .hit-main{color:var(--text); font-weight:500;}
+  .search-hit .hit-sub{color:var(--text-muted); font-size:11px; margin-top:1px;}
+  .search-empty{padding:10px 12px; color:var(--text-dim); font-size:12px;}
+
   @media (max-width:760px){
     .join-row{grid-template-columns:1fr; gap:14px;}
     .join-mid{flex-direction:row; padding:6px 0;}
@@ -134,6 +147,10 @@
 </div>
 
 <main id="content">
+  <div class="search-bar">
+    <input id="search-input" type="text" placeholder="Search by reader ID, serial number, customer, Fleet, location...">
+    <div class="search-results" id="search-results"></div>
+  </div>
   <div class="role-filter" id="role-filter">
     <span class="role-filter-label">View as:</span>
   </div>
@@ -142,7 +159,7 @@
 
   <div class="legend">
     <h2>What the middleware would actually have, right now</h2>
-    <p class="hint">Every field below maps to a row on the qualification tracker. Green is usable today. Amber needs a VTAP change request. Blue is an open question, mostly on the Enterpryze side. This updates automatically as CRs and questions get resolved. Right now it reflects the tracker as of 12 August.</p>
+    <p class="hint">Every field below maps to a row on the qualification tracker. Green is usable today. Amber needs a VTAP change request. Lilac is an open question, mostly on the Enterpryze side. Blue means something's already in progress. This updates automatically as CRs and questions get resolved. Right now it reflects the tracker as of 12 August.</p>
     <div class="status-grid" id="status-grid"></div>
   </div>
 </main>
@@ -186,6 +203,87 @@ const CUSTOMER_FIELD_GROUPS = [
 ];
 
 let currentRoleFilter = "all";
+let searchIndex = [];
+
+function buildSearchIndex(DATA) {
+  searchIndex = [];
+  DATA.correlated.forEach((c, i) => {
+    const vc = c.vtap_customer;
+    searchIndex.push({
+      type: "customer", tabIndex: i, rowId: null,
+      label: vc.custname, sub: vc.cid,
+      hay: [vc.custname, vc.cid, vc.billingentity, vc.country].filter(Boolean).join(" ").toLowerCase(),
+    });
+    c.readers.forEach(r => {
+      searchIndex.push({
+        type: "reader", tabIndex: i, rowId: r._rowid ? "row-" + r._rowid : null,
+        label: (r.rid || "") + (r.serialno ? "  ·  " + r.serialno : ""),
+        sub: vc.custname + (r.fleetname ? "  ·  " + r.fleetname : "  ·  no Fleet") + (r.location ? "  ·  " + r.location : ""),
+        hay: [r.rid, r.serialno, r.fleetname, r.location, r.appparam1, r.appparam2, vc.custname]
+          .filter(Boolean).join(" ").toLowerCase(),
+      });
+    });
+  });
+  if (DATA.unassigned_readers) {
+    const idx = DATA.correlated.length;
+    DATA.unassigned_readers.forEach(r => {
+      searchIndex.push({
+        type: "reader", tabIndex: idx, rowId: null,
+        label: (r.rid || "") + (r.serialno ? "  ·  " + r.serialno : ""),
+        sub: "Unassigned  ·  " + (r.note || ""),
+        hay: [r.rid, r.serialno, r.note].filter(Boolean).join(" ").toLowerCase(),
+      });
+    });
+  }
+}
+
+function renderSearchResults(query) {
+  const box = document.getElementById("search-results");
+  const q = query.trim().toLowerCase();
+  if (!q) { box.classList.remove("open"); box.innerHTML = ""; return; }
+  const hits = searchIndex.filter(h => h.hay.includes(q)).slice(0, 12);
+  if (!hits.length) {
+    box.innerHTML = `<div class="search-empty">No matches for "${query}"</div>`;
+  } else {
+    box.innerHTML = hits.map((h, i) => `
+      <div class="search-hit" data-hit="${i}">
+        <span class="hit-type">${h.type}</span><span class="hit-main">${h.label}</span>
+        <div class="hit-sub">${h.sub}</div>
+      </div>`).join("");
+    box.querySelectorAll(".search-hit").forEach((el, i) => {
+      el.addEventListener("click", () => goToHit(hits[i]));
+    });
+  }
+  box.classList.add("open");
+}
+
+function goToHit(hit) {
+  selectTab(hit.tabIndex);
+  document.getElementById("search-input").value = "";
+  document.getElementById("search-results").classList.remove("open");
+  if (hit.rowId) {
+    const row = document.getElementById(hit.rowId);
+    if (row) {
+      if (row.scrollIntoView) row.scrollIntoView({block: "center", behavior: "smooth"});
+      const detail = document.getElementById(row.dataset.target);
+      if (detail && !detail.classList.contains("open")) row.click();
+      row.style.background = "var(--surface-2)";
+      setTimeout(() => { row.style.background = ""; }, 1500);
+    }
+  }
+}
+
+function wireSearch() {
+  const input = document.getElementById("search-input");
+  input.addEventListener("input", () => renderSearchResults(input.value));
+  input.addEventListener("focus", () => { if (input.value.trim()) renderSearchResults(input.value); });
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".search-bar")) {
+      document.getElementById("search-results").classList.remove("open");
+    }
+  });
+}
+wireSearch();
 
 function timeSince(str) {
   if (!str) return "never";
@@ -218,7 +316,7 @@ function renderFieldValue(val) {
 function renderFieldGroups(record, groups) {
   const known = new Set();
   groups.forEach(g => g.fields.forEach(f => known.add(f)));
-  const leftover = Object.keys(record).filter(k => !known.has(k));
+  const leftover = Object.keys(record).filter(k => !known.has(k) && k !== "_rowid");
   const allGroups = leftover.length ? [...groups, {role: "tech", fields: leftover, label: "Other"}] : groups;
 
   return allGroups.map(g => {
@@ -265,6 +363,10 @@ function renderAll(DATA) {
   document.getElementById("panels").innerHTML = "";
   document.getElementById("status-grid").innerHTML = "";
   buildRoleFilterBar();
+  assignRowIds(DATA);
+  buildSearchIndex(DATA);
+  document.getElementById("search-input").value = "";
+  document.getElementById("search-results").classList.remove("open");
 
   document.getElementById("generated").textContent =
     "Generated " + new Date(DATA.generated_at).toLocaleString();
@@ -437,12 +539,18 @@ function renderCustomer(c) {
 
 let readerDetailSeq = 0;
 
+function assignRowIds(DATA) {
+  DATA.correlated.forEach(c => {
+    c.readers.forEach(r => { r._rowid = "rdr-detail-" + (readerDetailSeq++); });
+  });
+}
+
 function renderReaders(readers) {
   if (!readers.length) return `<div class="empty-note">No readers.</div>`;
   const rows = readers.map(r => {
-    const id = "rdr-detail-" + (readerDetailSeq++);
+    const id = r._rowid;
     return `
-    <tr class="reader-row" data-target="${id}">
+    <tr class="reader-row" id="row-${id}" data-target="${id}">
       <td><span class="chev">▸</span><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${RAG_COLOR[r._rag] || 'var(--text-dim)'};margin-right:6px;" title="_rag: ${r._rag}"></span>${r.rid}</td>
       <td class="narrow ${r.fid ? 'fleet-yes' : 'fleet-no'}">${r.fleetname ?? "no Fleet assigned"}</td>
       <td class="narrow">${r.appparam2 ?? "-"}</td>
