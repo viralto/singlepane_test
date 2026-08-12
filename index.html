@@ -3,16 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>VTAP / Enterpryze — correlated view</title>
+<title>VTAP / Enterpryze: correlated view</title>
 <style>
   :root{
-    --bg:#11161C; --surface:#1A222B; --surface-2:#212B36; --border:#2B3644;
-    --text:#E7EAEE; --text-muted:#8B96A5; --text-dim:#5C6675;
-    --confirmed:#4FBF8B; --confirmed-bg:#1B2C26;
-    --needs-cr:#E8A33D; --needs-cr-bg:#2C2419;
-    --open-q:#8B93C2; --open-q-bg:#20222E;
-    --in-progress:#5AA9E6; --in-progress-bg:#182631;
-    --unmatched:#C24B6B; --unmatched-bg:#2A1B21;
+    --bg:#F6F7F9; --surface:#FFFFFF; --surface-2:#EEF1F4; --border:#DCE1E6;
+    --text:#1C232B; --text-muted:#5B6572; --text-dim:#8A93A0;
+    --confirmed:#2E9E6D; --confirmed-bg:#E7F5EE;
+    --needs-cr:#B07A1A; --needs-cr-bg:#FBF1DD;
+    --open-q:#5B63A6; --open-q-bg:#ECEDF7;
+    --in-progress:#2C7BB8; --in-progress-bg:#E4F1F9;
+    --unmatched:#A83A56; --unmatched-bg:#F7E7EC;
     --mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
     --sans: -apple-system, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
   }
@@ -88,7 +88,7 @@
 <body>
 <header>
   <div>
-    <h1>VTAP Cloud ⟷ Enterpryze — correlated view</h1>
+    <h1>VTAP Cloud ⟷ Enterpryze: correlated view</h1>
     <div class="sub" id="generated"></div>
   </div>
   <span class="badge" id="source-badge"><span class="dot"></span><span id="source-text"></span></span>
@@ -100,13 +100,13 @@
 
   <div class="legend">
     <h2>What the middleware would actually have, right now</h2>
-    <p class="hint">Every field below maps to a row on the qualification tracker. Green is usable today. Amber needs a VTAP change request. Blue is an open question, mostly on the Enterpryze side. This updates automatically as CRs and questions get resolved — right now it reflects the tracker as of 12 August.</p>
+    <p class="hint">Every field below maps to a row on the qualification tracker. Green is usable today. Amber needs a VTAP change request. Blue is an open question, mostly on the Enterpryze side. This updates automatically as CRs and questions get resolved. Right now it reflects the tracker as of 12 August.</p>
     <div class="status-grid" id="status-grid"></div>
   </div>
 </main>
 
 <script>
-const DATA = {"generated_at": "2026-08-12T10:19:50", "source": "Sample data -- VTAP and/or Enterpryze credentials not yet configured", "live": false, "correlated": [{"vtap_customer": {"cid": "C00412", "custname": "EoS Fitness", "custaddr": "1180 N Town Center Dr, Las Vegas, NV", "country": "US", "billingcurrency": "USD", "billingentity": "Dot Inc", "custstatus": "active", "billingvat": null, "custinternal": 0}, "reader_count": 3, "fleet_count": 2, "readers_without_fleet": ["R88303"], "readers": [{"rid": "R88301", "cid": "C00412", "fid": "F0091", "fleetname": "EoS - Summerlin", "location": "Front desk", "appparam1": null, "appparam2": null, "lasttaptime": "2026-08-11 09:14:02", "active": "yes"}, {"rid": "R88302", "cid": "C00412", "fid": "F0092", "fleetname": "EoS - Henderson", "location": "Front desk", "appparam1": null, "appparam2": null, "lasttaptime": "2026-08-11 07:52:41", "active": "yes"}, {"rid": "R88303", "cid": "C00412", "fid": null, "fleetname": null, "location": "Charge / For June?", "appparam1": null, "appparam2": null, "lasttaptime": null, "active": "yes"}], "enterpryze_match": null, "join_status": "unmatched", "join_note": "No Enterpryze Business Partner found by name. Either not yet created there, or the names genuinely differ.", "invoices": []}, {"vtap_customer": {"cid": "C00187", "custname": "PassEntry", "custaddr": "14 Charlotte Rd, London", "country": "GB", "billingcurrency": "GBP", "billingentity": "Dot Limited", "custstatus": "active", "billingvat": "GB123456789", "custinternal": 0}, "reader_count": 2, "fleet_count": 2, "readers_without_fleet": [], "readers": [{"rid": "R71190", "cid": "C00187", "fid": "F0033", "fleetname": "PassEntry - Dear Darling", "location": null, "appparam1": "door_north", "appparam2": "venue=Dear Darling", "lasttaptime": "2026-08-10 22:03:11", "active": "yes"}, {"rid": "R71191", "cid": "C00187", "fid": "F0034", "fleetname": "PassEntry - Mama Roux", "location": null, "appparam1": "door_main", "appparam2": "venue=Mama Roux", "lasttaptime": "2026-08-10 23:41:55", "active": "yes"}], "enterpryze_match": null, "join_status": "unmatched", "join_note": "No Enterpryze Business Partner found by name. Either not yet created there, or the names genuinely differ.", "invoices": []}, {"vtap_customer": {"cid": "C01033", "custname": "Harbor Wellness Studio", "custaddr": "22 Harbor Way, Portland, ME", "country": "US", "billingcurrency": "USD", "billingentity": "Dot Inc", "custstatus": "active", "billingvat": null, "custinternal": 0}, "reader_count": 1, "fleet_count": 0, "readers_without_fleet": ["R90410"], "readers": [{"rid": "R90410", "cid": "C01033", "fid": null, "fleetname": null, "location": "Reception", "appparam1": null, "appparam2": null, "lasttaptime": "2026-07-30 15:02:09", "active": "yes"}], "enterpryze_match": null, "join_status": "unmatched", "join_note": "No Enterpryze Business Partner found by name. Either not yet created there, or the names genuinely differ.", "invoices": []}], "field_status": [{"system": "VTAP", "field": "cid / custname", "status": "confirmed", "ref": null, "note": "Available today, read only."}, {"system": "VTAP", "field": "billingentity", "status": "needs_cr", "ref": "CR7", "note": "Free text today; four spellings found for what may be two entities."}, {"system": "VTAP", "field": "External accounting reference (link to Enterpryze cardCode)", "status": "needs_cr", "ref": "CR2 / CR3", "note": "Field doesn't exist yet, and the customer record is read only via the API. This is the actual join key."}, {"system": "VTAP", "field": "fid / fleetname (Fleet)", "status": "confirmed", "ref": null, "note": "Exists today. Confirmed 12 Aug as the primary attribute for which customer a reader belongs to."}, {"system": "VTAP", "field": "Fleet assignment coverage", "status": "open_question", "ref": "Q26 / Q29 / Q35", "note": "Fleets are 'sometimes' used, not enforced at registration. R88303 and R90410 below show the gap."}, {"system": "VTAP", "field": "appparam1 / appparam2", "status": "confirmed", "ref": null, "note": "Exist today, but customer-configurable and explicitly not reliable for billing (confirmed 12 Aug)."}, {"system": "VTAP", "field": "lasttaptime", "status": "confirmed", "ref": null, "note": "Available today, but overwritten on every tap -- the activation moment isn't preserved."}, {"system": "VTAP", "field": "first_tap_time (write-once)", "status": "needs_cr", "ref": "CR1", "note": "Doesn't exist yet. The single highest-value change request on the tracker."}, {"system": "VTAP", "field": "local_mode flag", "status": "needs_cr", "ref": "CR6", "note": "Currently inferred from free text notes."}, {"system": "VTAP", "field": "TRIAL state", "status": "needs_cr", "ref": "CR12", "note": "DEV exists and never expires; a time-boxed converting state doesn't exist yet."}, {"system": "VTAP", "field": "Payer reference (where payer differs from customer of record)", "status": "needs_cr", "ref": "CR13", "note": "Evidence for the need exists on the Retired sheet ('Who pays subscription')."}, {"system": "Enterpryze", "field": "cardCode / name", "status": "confirmed", "ref": null, "note": "Business Partner primary key, exists today."}, {"system": "Enterpryze", "field": "API access enabled", "status": "in_progress", "ref": null, "note": "Confirmed 12 Aug -- Tim can get this enabled. No longer blocked, not yet done."}, {"system": "Enterpryze", "field": "Read/write scope", "status": "open_question", "ref": "Q20", "note": "Whether invoice paid status can be read back, which is what closes the loop for dunning."}, {"system": "Enterpryze", "field": "Webhooks vs poll-only", "status": "open_question", "ref": "Q21", "note": null}, {"system": "Enterpryze", "field": "Custom field for VTAP customer id", "status": "open_question", "ref": "Q22", "note": "This is what CR2 actually needs on the other side to close the loop."}, {"system": "Enterpryze", "field": "Native recurring billing", "status": "open_question", "ref": "Q23", "note": "If one-off only, the middleware owns the billing schedule as real scope."}, {"system": "Enterpryze", "field": "Sales invoice amountPaid / cancelled", "status": "confirmed", "ref": null, "note": "Exists today."}]};
+const DATA = {"generated_at": "2026-08-12T10:33:31", "source": "Sample data -- VTAP and/or Enterpryze credentials not yet configured", "live": false, "correlated": [{"vtap_customer": {"cid": "C00412", "custname": "EoS Fitness", "custaddr": "1180 N Town Center Dr, Las Vegas, NV", "country": "US", "billingcurrency": "USD", "billingentity": "Dot Inc", "custstatus": "active", "billingvat": null, "custinternal": 0}, "reader_count": 3, "fleet_count": 2, "readers_without_fleet": ["R88303"], "readers": [{"rid": "R88301", "cid": "C00412", "fid": "F0091", "fleetname": "EoS - Summerlin", "location": "Front desk", "appparam1": null, "appparam2": null, "lasttaptime": "2026-08-11 09:14:02", "active": "yes"}, {"rid": "R88302", "cid": "C00412", "fid": "F0092", "fleetname": "EoS - Henderson", "location": "Front desk", "appparam1": null, "appparam2": null, "lasttaptime": "2026-08-11 07:52:41", "active": "yes"}, {"rid": "R88303", "cid": "C00412", "fid": null, "fleetname": null, "location": "Charge / For June?", "appparam1": null, "appparam2": null, "lasttaptime": null, "active": "yes"}], "enterpryze_match": null, "join_status": "unmatched", "join_note": "No Enterpryze Business Partner found by name. Either not yet created there, or the names genuinely differ.", "invoices": []}, {"vtap_customer": {"cid": "C00187", "custname": "PassEntry", "custaddr": "14 Charlotte Rd, London", "country": "GB", "billingcurrency": "GBP", "billingentity": "Dot Limited", "custstatus": "active", "billingvat": "GB123456789", "custinternal": 0}, "reader_count": 2, "fleet_count": 2, "readers_without_fleet": [], "readers": [{"rid": "R71190", "cid": "C00187", "fid": "F0033", "fleetname": "PassEntry - Dear Darling", "location": null, "appparam1": "door_north", "appparam2": "venue=Dear Darling", "lasttaptime": "2026-08-10 22:03:11", "active": "yes"}, {"rid": "R71191", "cid": "C00187", "fid": "F0034", "fleetname": "PassEntry - Mama Roux", "location": null, "appparam1": "door_main", "appparam2": "venue=Mama Roux", "lasttaptime": "2026-08-10 23:41:55", "active": "yes"}], "enterpryze_match": null, "join_status": "unmatched", "join_note": "No Enterpryze Business Partner found by name. Either not yet created there, or the names genuinely differ.", "invoices": []}, {"vtap_customer": {"cid": "C01033", "custname": "Harbor Wellness Studio", "custaddr": "22 Harbor Way, Portland, ME", "country": "US", "billingcurrency": "USD", "billingentity": "Dot Inc", "custstatus": "active", "billingvat": null, "custinternal": 0}, "reader_count": 1, "fleet_count": 0, "readers_without_fleet": ["R90410"], "readers": [{"rid": "R90410", "cid": "C01033", "fid": null, "fleetname": null, "location": "Reception", "appparam1": null, "appparam2": null, "lasttaptime": "2026-07-30 15:02:09", "active": "yes"}], "enterpryze_match": null, "join_status": "unmatched", "join_note": "No Enterpryze Business Partner found by name. Either not yet created there, or the names genuinely differ.", "invoices": []}], "field_status": [{"system": "VTAP", "field": "cid / custname", "status": "confirmed", "ref": null, "note": "Available today, read only."}, {"system": "VTAP", "field": "billingentity", "status": "needs_cr", "ref": "CR7", "note": "Free text today; four spellings found for what may be two entities."}, {"system": "VTAP", "field": "External accounting reference (link to Enterpryze cardCode)", "status": "needs_cr", "ref": "CR2 / CR3", "note": "Field doesn't exist yet, and the customer record is read only via the API. This is the actual join key."}, {"system": "VTAP", "field": "fid / fleetname (Fleet)", "status": "confirmed", "ref": null, "note": "Exists today. Confirmed 12 Aug as the primary attribute for which customer a reader belongs to."}, {"system": "VTAP", "field": "Fleet assignment coverage", "status": "open_question", "ref": "Q26 / Q29 / Q35", "note": "Fleets are 'sometimes' used, not enforced at registration. R88303 and R90410 below show the gap."}, {"system": "VTAP", "field": "appparam1 / appparam2", "status": "confirmed", "ref": null, "note": "Exist today, but customer-configurable and explicitly not reliable for billing (confirmed 12 Aug)."}, {"system": "VTAP", "field": "lasttaptime", "status": "confirmed", "ref": null, "note": "Available today, but overwritten on every tap -- the activation moment isn't preserved."}, {"system": "VTAP", "field": "first_tap_time (write-once)", "status": "needs_cr", "ref": "CR1", "note": "Doesn't exist yet. The single highest-value change request on the tracker."}, {"system": "VTAP", "field": "local_mode flag", "status": "needs_cr", "ref": "CR6", "note": "Currently inferred from free text notes."}, {"system": "VTAP", "field": "TRIAL state", "status": "needs_cr", "ref": "CR12", "note": "DEV exists and never expires; a time-boxed converting state doesn't exist yet."}, {"system": "VTAP", "field": "Payer reference (where payer differs from customer of record)", "status": "needs_cr", "ref": "CR13", "note": "Evidence for the need exists on the Retired sheet ('Who pays subscription')."}, {"system": "Enterpryze", "field": "cardCode / name", "status": "confirmed", "ref": null, "note": "Business Partner primary key, exists today."}, {"system": "Enterpryze", "field": "API access enabled", "status": "in_progress", "ref": null, "note": "Confirmed 12 Aug -- Tim can get this enabled. No longer blocked, not yet done."}, {"system": "Enterpryze", "field": "Read/write scope", "status": "open_question", "ref": "Q20", "note": "Whether invoice paid status can be read back, which is what closes the loop for dunning."}, {"system": "Enterpryze", "field": "Webhooks vs poll-only", "status": "open_question", "ref": "Q21", "note": null}, {"system": "Enterpryze", "field": "Custom field for VTAP customer id", "status": "open_question", "ref": "Q22", "note": "This is what CR2 actually needs on the other side to close the loop."}, {"system": "Enterpryze", "field": "Native recurring billing", "status": "open_question", "ref": "Q23", "note": "If one-off only, the middleware owns the billing schedule as real scope."}, {"system": "Enterpryze", "field": "Sales invoice amountPaid / cancelled", "status": "confirmed", "ref": null, "note": "Exists today."}]};
 
 const STATUS_LABEL = {
   confirmed: "Confirmed available",
@@ -124,7 +124,7 @@ if (DATA.live) {
   sourceText.textContent = "Live data";
 } else {
   badge.classList.add("sample");
-  sourceText.textContent = "Sample data — no credentials configured";
+  sourceText.textContent = "Sample data (no credentials configured)";
 }
 
 const tabs = document.getElementById("tabs");
@@ -163,10 +163,10 @@ function renderCustomer(c) {
     <div class="name">${vc.custname}</div>
     <div class="id">${vc.cid}</div>
     <div class="kv">
-      <div class="k">billingentity</div><div class="v">${vc.billingentity ?? "—"}</div>
-      <div class="k">billingcurrency</div><div class="v">${vc.billingcurrency ?? "—"}</div>
-      <div class="k">country</div><div class="v">${vc.country ?? "—"}</div>
-      <div class="k">custstatus</div><div class="v">${vc.custstatus ?? "—"}</div>
+      <div class="k">billingentity</div><div class="v">${vc.billingentity ?? "-"}</div>
+      <div class="k">billingcurrency</div><div class="v">${vc.billingcurrency ?? "-"}</div>
+      <div class="k">country</div><div class="v">${vc.country ?? "-"}</div>
+      <div class="k">custstatus</div><div class="v">${vc.custstatus ?? "-"}</div>
     </div>
     <div class="readers">
       <h3>Readers (${c.reader_count}, ${c.fleet_count} Fleet${c.fleet_count===1?"":"s"})</h3>
@@ -190,8 +190,8 @@ function renderCustomer(c) {
       <div class="name">${bp.name}</div>
       <div class="id">${bp.cardCode}</div>
       <div class="kv">
-        <div class="k">billToCity</div><div class="v">${bp.billToCity ?? "—"}</div>
-        <div class="k">billToCountry</div><div class="v">${bp.billToCountry ?? "—"}</div>
+        <div class="k">billToCity</div><div class="v">${bp.billToCity ?? "-"}</div>
+        <div class="k">billToCountry</div><div class="v">${bp.billToCountry ?? "-"}</div>
       </div>
       <div class="invoices">
         <h3>Sales invoices (${c.invoices.length})</h3>
@@ -218,7 +218,7 @@ function renderReaders(readers) {
     <tr>
       <td>${r.rid}</td>
       <td class="narrow ${r.fid ? 'fleet-yes' : 'fleet-no'}">${r.fleetname ?? "no Fleet assigned"}</td>
-      <td class="narrow">${r.appparam2 ?? "—"}</td>
+      <td class="narrow">${r.appparam2 ?? "-"}</td>
       <td class="narrow">${r.lasttaptime ?? "never"}</td>
     </tr>`).join("");
   return `<table><thead><tr><th>rid</th><th>Fleet</th><th>appparam2</th><th>lasttaptime</th></tr></thead><tbody>${rows}</tbody></table>`;
